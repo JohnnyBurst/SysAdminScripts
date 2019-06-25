@@ -7,9 +7,10 @@
 # -----------------------------------------------------------------------------------
 # VARIAVEIS AJUSTAVEIS
 # -----------------------------------------------------------------------------------
+$ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path 
 
 # Arquivo de log
-$LogFile = "C:\Scripts\Logs\Auto_Windows_Update_{0}.txt" -f (Get-Date -Format 'yyyy-MM-dd_HH_mm')
+$LogFile = "$ScriptPath\Auto_Windows_Update_{0}.txt" -f (Get-Date -Format 'yyyy-MM-dd_HH_mm')
 
 #Procurar por atualizações ainda não instaladas, apenas software (nao drives) e que não estejam marcadas como ocultas.
 $SearchCriteria = "IsInstalled=0 And Type='Software' And IsHidden=0"
@@ -28,12 +29,14 @@ Function Log()
 	
 	$date = Get-Date -Format 'yyyy/MM/dd HH:mm'
 	Add-Content -Path $LogFile -Value "$($date): $($text)"
+	Write-Host "$($date): $($text)"
 }
 Function RawLog()
 {
 	Param([string]$text)
 	
 	Add-Content -Path $LogFile -Value $text
+	Write-Host $text
 }
 
 # Banner
@@ -78,7 +81,7 @@ Log("Baixando as atualizações.")
 $UpdatesToInstall = New-Object -ComObject Microsoft.Update.UpdateColl
 ForEach($update in $SearchResult.Updates)
 {
-	$UpdatesToInstall.Add($update)
+	[void] $UpdatesToInstall.Add($update)
 }
 
 $UpdateDownloader = $UpdateSession.CreateUpdateDownloader()
