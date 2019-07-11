@@ -1,1 +1,1 @@
-Schtasks /create /TN "Run_WU" /RU System /V1 /SC ONCE /ST 18:00 /ET 21:00 /RI 0 /K /RL HIGHEST /Z /TR "Powershell.exe -ep bypass -NoProfile -NonInteractive -File C:\Scripts\PS_Install_WindowsUpdates\PS_Install_Updates.ps1" 
+Schtasks /create /TN "Run_WU" /RU System /V1 /SC ONCE /ST 18:00 /ET 21:00 /RI 0 /K /RL HIGHEST /Z /TR "Powershell.exe -ep bypass -NoProfile -NonInteractive -File C:\Scripts\PS_Install_WindowsUpdates\PS_Install_WindowsUpdates.ps1" 
