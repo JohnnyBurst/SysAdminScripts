@@ -4,7 +4,7 @@
 ' Autor: luciano.rodrigues@v3c.com.br
 ' Data: 11/07/2019  Versão: 1.0 release inicial
 ' ----------------------------------------------------------------------------------
-'On Erro Resume Next
+On Error Resume Next
 'Option Explicit
 
 
@@ -14,6 +14,7 @@
 Set wshShell = CreateObject("WSCript.Shell")
 Set Wmi = GetObject("winMgmts:{ImpersonationLevel=Impersonate}!\\.\root\cimv2")
 Set objFSO = CreateObject("Scripting.FileSystemObject")
+Set objNetwork = CreateObject("WScript.Network")
 
 
 
@@ -27,7 +28,7 @@ WScript.Sleep(2000)
 Set services = Wmi.ExecQuery("Select * from WIn32_Service where name='ocs inventory service' and State='Stopped'")
 If services.Count <> 1 Then
     WSCript.Echo "[!] Erro ao parar o serviço do OCS Inventory."
-    WScript.Quit
+    'WScript.Quit
 Else
     WSCript.Echo "Serviço parado com sucesso!"
 End If
@@ -47,11 +48,11 @@ If objFSO.FileExists(config_path_local) Then
         WScript.Echo "Arquivo de configuração antigo deletado com sucesso!"
     Else
         WScript.Echo "[!] Erro ao deletar arquivo de configuração antigo."
-        WScript.Quit
+        'WScript.Quit
     End If
 Else
     WScript.Echo "[!] Erro, arquivo de configuração local não encontrado."
-    WScript.Quit
+    'WScript.Quit
 End If
 
 
@@ -61,7 +62,7 @@ If objFSO.FileExists(config_path_local) Then
     WScript.Echo "Arquivo de configuração copiado com sucesso!"
 Else
     WScript.Echo "[!] Erro ao copiar o arquivo de configuração."
-    WScript.Quit
+    'WScript.Quit
 End If
 
 
@@ -76,11 +77,13 @@ WScript.Sleep(2000)
 Set services = Wmi.ExecQuery("Select * from Win32_Service where name='Ocs Inventory Service' and State='Running'")
 If services.Count <> 1 Then
     WSCript.Echo "[!] Erro ao iniciar o serviço do OCS Inventory."
-    WScript.Quit
+    'WScript.Quit
 Else
     WSCript.Echo "Serviço iniciado com sucesso!"
 End If
 
-
+Set oFile = objFSO.CreateTextFile("\\UTLBHHOST1\ocs-tmp$\" & objNetwork.ComputerName & ".txt")
+oFile.WriteLine "OK"
+oFile.Close
 
 
