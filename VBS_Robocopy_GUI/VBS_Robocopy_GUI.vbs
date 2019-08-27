@@ -18,7 +18,7 @@ Set oFS = CreateObject("Scripting.FileSystemObject")
 ' Caso não seja, então re-executa o script como adm.
 Set command = wshShell.Exec("whoami.exe /groups")
 hasAdmin = False
-While command.Status = 0
+While command.Status = STATUS_RUNNING
     Do While Not command.stdout.AtEndOfStream 
         output = command.stdout.ReadAll()
         If InStr(output, "S-1-16-12288") <> 0 Then
@@ -65,7 +65,7 @@ IE.MenuBar = False
 IE.ToolBar = False
 IE.Visible = True
 IE.Width = 600
-IE.Height = 300
+IE.Height = 320
 IE.Navigate("about:blank")
 
 ' Mostrando origem e destino para o usuário.
@@ -79,11 +79,12 @@ IE.Document.Body.InnerHTML = HTMLBody
 IE.Document.Body.InnerHTML = IE.Document.Body.InnerHTML & "<p>Coletando Estatisticas...</p>"
 robocopy_command = "robocopy.exe " & chr(34) & DIR_SOURCE & chr(34) & " " & chr(34) & DIR_DEST & chr(34) & " " & "/L /MIR /NDL /NFL /NC /NP /BYTES /R:0 /W:0"
 Set robocopy = wshShell.Exec(robocopy_command)
+wshShell.AppActivate "Página em Branco - Internet Explorer"
 
 robocopy_stdoutAll = ""
 Do While robocopy.Status = STATUS_RUNNING
 	robocopy_stdoutAll = robocopy_stdoutAll & robocopy.stdout.ReadAll()
-	wscript.sleep 500
+	wscript.sleep 1000
 Loop
 
 
@@ -94,7 +95,7 @@ Loop
 Set regex = New RegExp
 TotalBytes = 0
 
-regex.Pattern = "Bytes\s+?:\s\d+\s+(\d+)"
+regex.Pattern = "Bytes\s?:\s\d+\s+(\d+)"
 Set matches   = regex.Execute(robocopy_stdoutAll)
 
 For Each match in matches
@@ -127,12 +128,12 @@ Set regex2 = New RegExp
 CopiedBytes = 0
 
 regex.Pattern = "(Novo Arquivo|New File|Mais Antigo|Older|Mais Recente|Newer)\s+(\d+)\s+.*"
-regex2.Pattern = "Files\s+?:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)"
+regex2.Pattern = "(Arquivos|Files)\s?:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)"
 
 ' Executando o robocopy
 robocopy_command = "robocopy " & chr(34) & DIR_SOURCE & chr(34) & " " & chr(34) & DIR_DEST & chr(34) & " " & "/MIR /NDL /BYTES /R:0 /W:0"
 Set robocopy = wshShell.Exec(robocopy_command)
-
+wshShell.AppActivate "Página em Branco - Internet Explorer"
 
 
 While robocopy.Status <> STATUS_FINISHED  ' enquanto robocopy estiver executando...
@@ -159,12 +160,12 @@ While robocopy.Status <> STATUS_FINISHED  ' enquanto robocopy estiver executando
 					HTMLBody = HTMLBody &"<progress value='" & progress & "' max='100' style='width:100%'></progress>"
 					HTMLBody = HTMLBody & "<p>Copiados " & CopiedBytes & " de " & TotalBytes & " Bytes</p>"
 					HTMLBody = HTMLBody & "<p>Progresso: " & progress & "%</p>"
-					HTMLBody = HTMLBody & "<p>Total de Arquivos: " & Match.SubMatches(0) & _
-						"<br>Copiados: " & Match.Submatches(1) & _
-						"<br>Ignorados: " & Match.Submatches(2) & _
-						"<br>Mismatch: " & Match.Submatches(3) & _
-						"<br>Erros: " & Match.Submatches(4) & _
-						"<br>Extras: " & Match.Submatches(5) & "</p>"
+					HTMLBody = HTMLBody & "<p>Total de Arquivos: " & Match.SubMatches(1) & _
+						"<br>Copiados: " & Match.Submatches(2) & _
+						"<br>Ignorados: " & Match.Submatches(3) & _
+						"<br>Mismatch: " & Match.Submatches(4) & _
+						"<br>Erros: " & Match.Submatches(5) & _
+						"<br>Extras: " & Match.Submatches(6) & "</p>"
 					IE.Document.Body.InnerHTML = HTMLBody
 				Next
 			End If
@@ -172,9 +173,6 @@ While robocopy.Status <> STATUS_FINISHED  ' enquanto robocopy estiver executando
 	Wend
 	wscript.sleep 1000
 Wend
-
-
-'IE.Document.Body.InnerHTML = IE.Document.Body.InnerHTML & "<p>Terminado!</p>"
 
 
 wshShell.PopUp("Copia Finalizada!")
