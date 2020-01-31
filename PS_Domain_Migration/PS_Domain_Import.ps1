@@ -3,7 +3,8 @@
     This script import users, groups and organizational units and it's association from an .xml file.
 
 .DESCRIPTION
-    This script imports users, groups (and it's association users->groups and groups->groups) and organizational units from an .xml file created with the "PS_Domain_Export.PS1" script.
+    This script imports users, groups (and it's association users->groups and groups->groups) and organizational units from an .xml file created with the
+    "PS_Domain_Export.PS1" script.
     We import all user, group and OU fields. User's passwords should be informed and will be default for all users.
 
 .PARAMETER DefaultUserPassword
@@ -11,7 +12,7 @@
 
 
 .NOTES
-    Copyright (C) 2020  Luciano Rodrigues
+    Copyright (C) 2020  luciano.grodrigues@live.com
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License

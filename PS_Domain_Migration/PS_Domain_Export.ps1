@@ -3,13 +3,14 @@
     This script exports users, groups and organizational units and it's association as an .xml file.
 
 .DESCRIPTION
-    This script exports users and groups information (and it's association users->groups and groups->groups) as an .xml to be later imported into a new domain controller.
+    This script exports users and groups information (and it's association users->groups and groups->groups) 
+    as an .xml to be later imported into a new domain controller.
     We export all user and group fields (except password). It should help you in the case of a domain migration or rebuild.
 
 
 
 .NOTES
-    Copyright (C) 2020  Luciano Rodrigues
+    Copyright (C) 2020  luciano.grodrigues@live.com
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License

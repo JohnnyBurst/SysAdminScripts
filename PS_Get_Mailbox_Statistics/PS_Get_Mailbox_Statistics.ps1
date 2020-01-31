@@ -1,32 +1,45 @@
-# --------------------------------------------------------------------------------------------------------
-# Script para listar utilização de caixas de e-mail do exchange online (office 365).
-# via3lr - luciano.rodrigues@v3c.com.br
-# Usage: Invoque este script passando usuário e senha do administrador do office365 
-# do cliente.
-# Exemplo: powershell -file PS_Get_Mailboxes_Statistics.ps1 ti@cliente.com.br ClienteSenhaSuperSegura
-# --------------------------------------------------------------------------------------------------------
+ï»¿<#
+.SYNOPSIS
+    This script connects to Office365 and retrieve all mailboxes usage statistics.
+
+.DESCRIPTION
+    This script connects to Office365 using the provided AdminUser and AdminPassword then retrieve all user mailboxes (created on the AdminUser tenant) and it's usage statistics.
+    The results are displayed into a Output Grid Table.
 
 
-# --------------------------------------------------------------------------------------------------------
-# Parametros globais do script
-# --------------------------------------------------------------------------------------------------------
+.EXAMPLE
+    .\PS_Get_Mailboxes_Statistics.ps1 Admin@contoso.onmicrosoft.com SuperSecureP4ssword
+
+
+.NOTES
+    Copyright (C) 2020  Luciano Rodrigues
+
+    This program is free software; you can redistribute it and/or
+    modify it under the terms of the GNU General Public License
+    as published by the Free Software Foundation; either version 2
+    of the License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+#>
+
+
 Param(
     [Parameter(Mandatory=$True)] [string]$AdminUser,
     [Parameter(Mandatory=$True)] [string]$AdminPass
 )
 
 
-# --------------------------------------------------------------------------------------------------------
-# Compilando usuário e senha recebidos como uma credencial segura
-# --------------------------------------------------------------------------------------------------------
+# Transforming the plaintext provided password into a PSCredential
 $user = $AdminUser
 $pass = ConvertTo-SecureString -AsPlainText -Force $AdminPass
 $UserCredential = New-Object System.Management.Automation.PSCredential($user, $pass)
 
 
-# --------------------------------------------------------------------------------------------------------
-# Conectando a uma sessão do exchange online
-# --------------------------------------------------------------------------------------------------------
+# Connecting to Online Exchange
 try{
     $Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credential $UserCredential -Authentication Basic -AllowRedirection
     Import-PSSession $Session
@@ -36,9 +49,7 @@ try{
     Exit
 }
 
-# --------------------------------------------------------------------------------------------------------
-# Obtendo as caixas de e-mail e as estatísticas
-# --------------------------------------------------------------------------------------------------------
+# Retrieving list of available mailboxes
 Write-Host "Getting Mailboxes..."
 $Mailboxes = Get-MailBox
 
@@ -47,10 +58,10 @@ $table = @()
 Write-Host "Getting Statistics..."
 
 $processed = 0
-$Mailboxes | %{
+$Mailboxes | ForEach-Object{
     # --------------------------------------------------------------------------------------------------------
-    # Obtem a caixa de e-mail e o campo TotalItemSize
-    # É necessário converter o campo TotalItemSize para conseguirmos 
+    # Actually, we need some kind of magic here! As we are in a remote ps-session, we cannot directly convert 
+    # the serialized value into bytes to show as GB... so the magic must happen!
     # --------------------------------------------------------------------------------------------------------
   Write-Progress -Activity $_.Identity -PercentComplete ([math]::round(100/$Mailboxes.Count * $processed))
   $UsageMB = [math]::round( (Get-MailboxStatistics -Identity $_.Identity).TotalItemSize.Value.toString().Split("(")[1].split(" ")[0].replace(",","")/1MB )
@@ -60,4 +71,7 @@ $Mailboxes | %{
 }
 
 
+# Showing the results...
 $table | Sort-Object -Property UsageMB -Descending | Out-GridView
+
+Remove-PSSession $Session
