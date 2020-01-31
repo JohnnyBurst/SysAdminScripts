@@ -1,33 +1,54 @@
-﻿# ----------------------------------------------------------------------------
-# Script para exportar em XML dados do AD (usuarios, grupos,ou's, members)
-# Autor: luciano.rodrigues@v3c.com.br
-# Ajuste os parametros variaveis e execute este script como administrador.
-# ----------------------------------------------------------------------------
+﻿<#
+.SYNOPSIS
+    This script exports users, groups and it's association as an .xml file.
+
+.DESCRIPTION
+    This script exports users and groups information (and it's association users->groups and groups->groups) as an .xml to be later imported into a new domain controller.
+    We export all user and group fields (except password). It should help you in the case of a domain migration or rebuild.
 
 
-# ----------------------------------------------------------------------------
-# Parametros modificaveis
-# ----------------------------------------------------------------------------
-# Arquivo de saída. Por padrão é criado na pasta Documentos do usuário logado.
+
+.NOTES
+    Copyright (C) 2020  Luciano Rodrigues
+
+    This program is free software; you can redistribute it and/or
+    modify it under the terms of the GNU General Public License
+    as published by the Free Software Foundation; either version 2
+    of the License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+#>
+
+
+
+
+# Getting the current folder in which this script has been executed.
 $script_path = Split-Path -Parent $MyInvocation.MyCommand.Path
-$exportfile = "$script_path\domain_export.xml" 
+$exportfile = "$script_path\exported_domain_info.xml" 
 
 
-# Campos que serão exportados dos usuarios
-$export_fields = $("name", "GivenName","Surname","Title","Initials","mail","SamAccountName","Company","Department","Description","DisplayName","Division","EmailAddress","EmployeeID","EmployeeNumber","HomeDirectory","Manager","MobilePhone","Office","OfficePhone","Organization","OtherName","PasswordNeverExpires","ProfilePath","ScriptPath","State","StreetAddress","DistinguishedName","enabled")
+# List of user's fields to be exported.
+$user_export_fields = $("name", "GivenName","Surname","Title","Initials","mail","SamAccountName","Company",
+                "Department","Description","DisplayName","Division","EmailAddress","EmployeeID","EmployeeNumber",
+                "HomeDirectory","Manager","MobilePhone","Office","OfficePhone","Organization","OtherName","PasswordNeverExpires",
+                "ProfilePath","ScriptPath","State","StreetAddress","DistinguishedName","enabled")
 
 
-# Lista de grupos para não copiar | grupos padrão do active directory
+# Blacklist of groups not to export | they are default Active Directory Groups and do not need to be recreated.
 $blacklist_groups = @('WinRMRemoteWMIUsers__','Administrators','Users','Guests','Print Operators','Backup Operators','Replicator','Remote Desktop Users','Network Configuration Operators','Performance Monitor Users','Performance Log Users','Distributed COM Users','IIS_IUSRS','Cryptographic Operators','Event Log Readers','Certificate Service DCOM Access','RDS Remote Access Servers','RDS Endpoint Servers','RDS Management Servers','Hyper-V Administrators','Access Control Assistance Operators','Remote Management Users','Domain Computers','Domain Controllers','Schema Admins','Enterprise Admins','Cert Publishers','Domain Admins','Domain Users','Domain Guests','Group Policy Creator Owners','RAS and IAS Servers','Server Operators','Account Operators','Pre-Windows 2000 Compatible Access','Incoming Forest Trust Builders','Windows Authorization Access Group','Terminal Server License Servers','Allowed RODC Password Replication Group','Denied RODC Password Replication Group','Read-only Domain Controllers','Enterprise Read-only Domain Controllers','Cloneable Domain Controllers','Protected Users','DnsAdmins','DnsUpdateProxy','DHCP Administrators','DHCP Users','TelnetClients','HelpServicesGroup')
 
-# Lista de usuários para não copiar | usuários ipadrão do active directory
+# Blacklist of users not to export | they are default Active Directory users and do not need to be recreated.
 $blacklist_users = @('Administrator','Guest','krbtgt')
 ForEach($user in (Get-ADUser -Filter {Name -like '*SUPPORT_*'}))
 {
     $blacklist_users += $user.Name
 }
 
-# Lista de OU's para não copiar | ous padrão do active directory
+# Blacklist of Organizational Units not to export.
 $blacklist_ous = @('Domain Controllers')
 
 
@@ -36,42 +57,38 @@ $blacklist_ous = @('Domain Controllers')
 
 # -------------------------------------------------------------------------------------------
 #     -----------------------------------------------------------------------------
-#              !!! NÃO MODIFIQUE DESETA LINHA PARA BAIXO !!!
+#                                 MAIN ROUTINE
 #     -----------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------
+# How does the magic works?
+# 1. We discover the current domain
+# 2. List the domain controllers in the current domain
+# 3. Connect to PDC emulator server via ldap and retrieve the default naming context (dc=contoso,dc=corp)
+# 4. Export all user/group and it's association that is down the default naming context (we try to export all users, seriously)
+# 5. Save 
+#
 
-# Declarando o objeto XML e atribuindo o nó root
+# Creating the xml object to hold our info
 $xml = [xml]''
 $xmlroot = $xml.appendChild($xml.CreateElement("Migration"))
 
-# Conexão ADSI
+# Getting current domain
 $adsi_domain = [System.DirectoryServices.ActiveDirectory.Domain]::GetCurrentDomain()
-
-# Dominio do AD de origem
 $sourcedomain = $adsi_domain.name                
-
-# Obtendo o servidor AD com a função de PDC
 $all_domain_controllers = $adsi_domain.DomainControllers
 $dc = $adsi_domain.PdcRoleOwner
-
-# Carregando o default naming context da particao do AD
 $RootDSE = [ADSI]"LDAP://$dc/RootDSE"
 $default_naming_context = $RootDSE.DefaultNamingContext.Value
-
-# base de procura por objetos -> rootdsr/defaultnamingcontext
 $basednsearch = $default_naming_context
 
 
-# -------------------------------------------------------------------------------------------
-# Inserindo no XML informações do ambiente de origem.
-# -------------------------------------------------------------------------------------------
 
-# SourceDomain
+# Appending source domain info to the xml
 $xmlsourcedomainnode = $xmlroot.AppendChild($xml.CreateElement("sourcedomain"))
 $xmlsourcedomainnode.AppendChild($xml.CreateTextNode($sourcedomain)) | out-null
 
 
-# DefaultNamingContext
+# Appending source DefaultNamingContext info to the xml
 $xmlnamingcontextnode = $xmlroot.AppendChild($xml.CreateElement("namingcontext"))
 $xmlnamingcontextnode.AppendChild($xml.CreateTextNode($default_naming_context)) | out-null
 
@@ -79,37 +96,34 @@ $xmlnamingcontextnode.AppendChild($xml.CreateTextNode($default_naming_context)) 
 
 
 # -------------------------------------------------------------------------------------------
-# Obtendo a lista de usuarios
+# Exporting users
 # -------------------------------------------------------------------------------------------
-Write-Host "Exportando lista de usuarios..."
+Write-Host "Exporting users..."
 $ADUsers = Get-ADUser -Filter * -Properties * -SearchBase $basednsearch  | Where-Object {$_.Name -notin $blacklist_users}
-Write-Host "Total de usuarios encontrados: $($ADUsers.count)"
+Write-Host "Total of exportable users found: $($ADUsers.count)"
 
-# Criando o nó master de usuarios
+# Appending the main node of users to the xml
 $xmlusersnode = $xmlroot.AppendChild($xml.CreateElement("users"))
 
 
-# Adicionando cada usuario com suas propriedades
+# Appending each user to the xml
 foreach($user in $ADUsers)
 {
-    # Criando o nó usuario
+    # New user node
     $xmlusernode = $xmlusersnode.AppendChild($xml.CreateElement("user"))
 
-    # Adicionando os atributos
-    foreach($field in $export_fields)
+    # Attributes
+    foreach($field in $user_export_fields)
     {
-        # Criando o nó do atributo do usuário.
+        # Creating the attribute node and inserting it's value
         $xmluserfieldnode = $xmlusernode.appendChild($xml.CreateElement($field))
-        
-        # Inserindo o valor do atributo do usuário.
         $xmluserfieldnode.appendChild($xml.CreateTextNode($user.$field)) | out-null
     }
 
-    # Adicionando os grupos, necessario codigo separado para manipular esta funcao
+    # Adding a node associating the user with it's group memberships
     foreach($group in $user.memberof)
     {
         $parsedGroup = $group.replace( $sourceBaseDN, $targetBaseDN)
-        # Adicionando os grupos (memberof) ao usuario no xml.
         $xmlusermemberofnode = $xmlusernode.appendChild($xml.CreateElement("memberof"))
         $xmlusermemberofnode.appendChild($xml.CreateTextNode($parsedGroup))  | out-null
 
@@ -118,17 +132,16 @@ foreach($user in $ADUsers)
 
 
 # -------------------------------------------------------------------------------------------
-# Obtendo a lista de Grupos
+# Exporting groups
 # -------------------------------------------------------------------------------------------
-#Obtendo os grupos do AD
-Write-Host "Processando Grupos..."
-$ADGroups = Get-ADGroup -Filter * -SearchBase $basednsearch -Properties * | Where-Object {$_.Name -notin $blacklist_groups} | Select Name,GroupScope,GroupCategory,Description,Info,memberof,DistinguishedName
-Write-Host "Total de grupos encontrados: $($ADGroups.Count)"
+Write-Host "Exporting groups..."
+$ADGroups = Get-ADGroup -Filter * -SearchBase $basednsearch -Properties * | Where-Object {$_.Name -notin $blacklist_groups} | Select-Object Name,GroupScope,GroupCategory,Description,Info,memberof,DistinguishedName
+Write-Host "Total of exportable groups found: $($ADGroups.Count)"
 
-# Criando o nó master de grupos
+# Creating the main groups node
 $xmlgroupsnode = $xmlroot.appendChild($xml.CreateElement("groups"))
 
-# campos exportados dos grupos
+# List of fields to be exported from the groups
 $groups_fields = @("Name","GroupScope","GroupCategory","Description","Info","DistinguishedName")
 
 
@@ -138,18 +151,15 @@ foreach($group in $ADGroups)
     
     foreach($field in $groups_fields)
     {
-        # Criando o nó do atributo do grupo.
+        # Creating the field element and inserting it's value
         $xmlgroupfieldnode = $xmlgroupnode.appendChild($xml.CreateElement($field))
-
-        # Inserindo o valor do atributo do grupo.
         $xmlgroupfieldnode.appendChild($xml.CreateTextNode($group.$field)) | out-null
     }
 
-    # Manipulando o atributo memberof dos grupos (Grupos contidos em outros Grupos).
+    # Exporting the list of groups that this group is a member
     foreach($memberof in $group.memberof)
     {
         $parsedGroup = $memberof.replace( $sourceBaseDN, $targetBaseDN)
-        # Adicionando os grupos (memberof) ao grupo no xml.
         $xmlgroupmemberofnode = $xmlgroupnode.appendChild($xml.CreateElement("memberof"))
         $xmlgroupmemberofnode.appendChild($xml.CreateTextNode($parsedGroup))  | out-null
 
@@ -160,20 +170,17 @@ foreach($group in $ADGroups)
 
 
 # -------------------------------------------------------------------------------------------
-# Obtendo a lista de Unidades Organizacionais
+# Exporting Organizational Units
 # -------------------------------------------------------------------------------------------
-
-# campos exportados das ou's
+# fields to be exported
 $ou_fields = @("Name","Description","DistinguishedName")
 
-# Obtendo a lista de OU's do Demônio
-Write-Host "Processando OU's..."
+Write-Host "Exporting Organizational Units..."
 $ADOUs = Get-ADOrganizationalUnit -Filter * -SearchBase $basednsearch -Properties Description | Where-Object {$_.Name -notin $blacklist_ous} | Select $ou_fields
 Write-Host "Total de OU's encontradas: $($ADOUs.Count)"
 
-# Criando o nó master de ou's
+# Creating main OU node
 $xmlousnode = $xmlroot.appendChild($xml.CreateElement("ous"))
-
 
 
 
@@ -183,10 +190,8 @@ foreach($ou in $ADOUs)
     
     foreach($field in $ou_fields)
     {
-        # Criando o nó do atributo do grupo.
+        # Creating the attribute element and giving it's value
         $xmloufieldnode = $xmlounode.appendChild($xml.CreateElement($field))
-
-        # Inserindo o valor do atributo do grupo.
         $xmloufieldnode.appendChild($xml.CreateTextNode($ou.$field)) | out-null
     }
 
@@ -196,7 +201,11 @@ foreach($ou in $ADOUs)
 
 
 # -------------------------------------------------------------------------------------------
-# Salvando o arquivo .XML final
+# Saving the .XML file with all exported information.
 # -------------------------------------------------------------------------------------------
-Write-Host "Salvando o arquivo $exportfile"
-$xml.Save($exportfile)
+Write-Host "Saving the file $exportfile"
+try{
+    $xml.Save($exportfile)
+}catch{
+    $PSCmdlet.ThrowTerminatingError($_.Exception)
+}
