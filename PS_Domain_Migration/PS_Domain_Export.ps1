@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-    This script exports users, groups and it's association as an .xml file.
+    This script exports users, groups and organizational units and it's association as an .xml file.
 
 .DESCRIPTION
     This script exports users and groups information (and it's association users->groups and groups->groups) as an .xml to be later imported into a new domain controller.
