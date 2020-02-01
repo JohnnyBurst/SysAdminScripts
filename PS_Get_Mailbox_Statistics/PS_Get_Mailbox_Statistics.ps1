@@ -3,7 +3,8 @@
     This script connects to Office365 and retrieve all mailboxes usage statistics.
 
 .DESCRIPTION
-    This script connects to Office365 using the provided AdminUser and AdminPassword then retrieve all user mailboxes (created on the AdminUser tenant) and it's usage statistics.
+    This script connects to Office365 using the provided AdminUser and AdminPassword then retrieve all user mailboxes 
+    (created on the AdminUser tenant) and it's usage statistics.
     The results are displayed into a Output Grid Table.
 
 
@@ -12,7 +13,7 @@
 
 
 .NOTES
-    Copyright (C) 2020  Luciano Rodrigues
+    Copyright (C) 2020  luciano.grodrigues@live.com
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
